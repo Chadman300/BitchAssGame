@@ -24,9 +24,12 @@ public class WindowPanel extends JPanel implements Runnable
     public double cameraX = 0;
     public double cameraY = 0;
 
+    //player
+    public Player player;
+
     //physics var
     public boolean isPaused = true;
-    public double gravity = 15.0 * 1000;
+    public double gravity = 1.0 * 10000000;
     public int subSteps = 8; // Reduced from 50 to 8 for better performance
     public int gridSize = 20; // for hasing optimization
     
@@ -77,6 +80,8 @@ public class WindowPanel extends JPanel implements Runnable
         // Initialize render timer for 60 FPS
         renderTimer = new javax.swing.Timer(16, e -> repaint()); // 16ms ≈ 60 FPS
         renderTimer.start();
+        
+        SpawnPlayer();
     }
 
     //Paint
@@ -155,8 +160,6 @@ public class WindowPanel extends JPanel implements Runnable
                         10, 
                         10);
                 }
-
-                
             }
 
             //debug
@@ -236,6 +239,28 @@ public class WindowPanel extends JPanel implements Runnable
         }
     }
 
+    public void SpawnPlayer()
+    {
+        if(player != null)
+        {
+            //remove old player circles
+            circlesList.remove(player.groundCircle);
+            circlesList.remove(player.playerCircle);
+        }
+
+        // Initialize player
+        var playerCircle = new Circle(10, windowHeight / 2, windowWidth/2, 1, Color.RED);
+        var groundCircle = new Circle(8, windowHeight / 2, windowWidth/2, 1, Color.GREEN, false, false);
+
+        playerCircle.layer = Layer.PLAYER;
+        playerCircle.restitutionCircle = 0.1; // Less bouncy for player
+        playerCircle.restitutionPoly  = 0.1; // Less bouncy for player
+
+        player = new Player(playerCircle, groundCircle);
+        circlesList.add(player.groundCircle);
+        circlesList.add(player.playerCircle);
+    }
+
     private void drawGrid(Graphics g) 
     {
         
@@ -282,11 +307,8 @@ public class WindowPanel extends JPanel implements Runnable
             var _subSteps = subSteps;
 
             // Handle WASD camera movement (works even when paused)
-            if (wPressed) cameraY += cameraSpeed * deltaTime;
-            if (sPressed) cameraY -= cameraSpeed * deltaTime;
-            if (aPressed) cameraX += cameraSpeed * deltaTime;
-            if (dPressed) cameraX -= cameraSpeed * deltaTime;
-
+            //if (wPressed) cameraY += cameraSpeed * deltaTime;
+            //if (sPressed) cameraY -= cameraSpeed * deltaTime;
 
             //dont update if paused
             if(isPaused)
@@ -306,6 +328,14 @@ public class WindowPanel extends JPanel implements Runnable
             
             for(int step = 0; step < _subSteps; step++)
             {
+                player.PlayerUpdate(subDeltaTime);
+
+                if (aPressed) player.Move(subDeltaTime, -1);
+                if (dPressed) player.Move(subDeltaTime, 1);
+
+                //move camera to player
+                cameraX = -(player.playerCircle.currentPos.dx - (windowWidth / 2)) / cameraZoom;
+                cameraY = -(player.playerCircle.currentPos.dy - (windowHeight / 2)) / cameraZoom;
 
                 //Hash out circles into a grid for each substep
                 HashMap<String, ArrayList<Circle>> grid = new HashMap<>();
@@ -333,6 +363,7 @@ public class WindowPanel extends JPanel implements Runnable
                     for (int i = 0; i < cellCircles.size(); i++) 
                     {
                         Circle c1 = cellCircles.get(i);
+                        c1.isCollidingCircle = false;
 
                         // Check collisions with circles in same cell
                         for (int j = i + 1; j < cellCircles.size(); j++) 
@@ -343,14 +374,18 @@ public class WindowPanel extends JPanel implements Runnable
                         
                         // Check collisions with neighboring cells
                         
-                        for (int dx = -1; dx <= 1; dx++) {
-                            for (int dy = -1; dy <= 1; dy++) {
+                        for (int dx = -1; dx <= 1; dx++) 
+                        {
+                            for (int dy = -1; dy <= 1; dy++) 
+                            {
                                 if (dx == 0 && dy == 0) continue; // Skip same cell
                                 
                                 String neighborKey = (gridX + dx) + "," + (gridY + dy);
-                                if (grid.containsKey(neighborKey)) {
+                                if (grid.containsKey(neighborKey)) 
+                                {
                                     ArrayList<Circle> neighborCircles = grid.get(neighborKey);
-                                    for (Circle c2 : neighborCircles) {
+                                    for (Circle c2 : neighborCircles) 
+                                    {
                                         c1.CircleCollisions(c2, subDeltaTime);
                                     }
                                 }
@@ -359,6 +394,7 @@ public class WindowPanel extends JPanel implements Runnable
                     
                     
                         // Apply boundary collisions
+                        c1.isCollidingPoly = false;
                         for (int p = 0; p < polygonList.size(); p++)
                         {
                             Poly poly = polygonList.get(p);
@@ -599,6 +635,9 @@ public class WindowPanel extends JPanel implements Runnable
                         break;
                     case KeyEvent.VK_SHIFT:
                         cameraSpeed = 1000.0;
+                        break;
+                    case KeyEvent.VK_SPACE:
+                        player.Jump(deltaTime);
                         break;
                 }
             }

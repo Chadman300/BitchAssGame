@@ -13,6 +13,11 @@ public class Link
         this.restLength = restLength;
     }
 
+    public double getRestLength() 
+    {
+        return restLength;
+    }
+
     public void ApplyForces(double deltaTime)
     {
         if(circleA == null || circleB == null) return;
