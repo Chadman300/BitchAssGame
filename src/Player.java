@@ -5,6 +5,7 @@ public class Player
     //public
     public Circle playerCircle;
     public Circle groundCircle;
+    public PlayerType playerType;
 
     //private
     private int score;
@@ -27,8 +28,8 @@ public class Player
         this.maxHealth = 100.0f; // Default max health
 
         this.jumpForce = 50000000.0f; // Default jump force
-        this.moveForce = 5000000.0f; // Default move force
-        this.airMoveForceReduction = 0.15f; // 15% movement control in air
+        this.moveForce = 1000000.0f; // Default move force
+        this.airMoveForceReduction = 0.25f; // 25% movement control in air
     }
 
     public void Jump(double deltaTime) 
@@ -65,7 +66,7 @@ public class Player
         }
 
         groundCircle.currentPos.dx = playerCircle.currentPos.dx;
-        groundCircle.currentPos.dy = playerCircle.currentPos.dy + (playerCircle.radius);
+        groundCircle.currentPos.dy = playerCircle.currentPos.dy + (groundCircle.radius / 2);
 
         if(groundCircle.isCollidingPoly)
         {
