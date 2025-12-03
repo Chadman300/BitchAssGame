@@ -45,33 +45,33 @@ public class Link
             
             // Apply only half the correction per frame for stability
             double correctionAmount = difference * 0.5;
-            double correctionX = normalX * correctionAmount;
-            double correctionY = normalY * correctionAmount;
             
-            // Move circles toward correct distance
-            if(!circleA.isPinned)
-            {
-                circleA.currentPos.dx += correctionX * 0.5; // Each circle gets half the correction
-                circleA.currentPos.dy += correctionY * 0.5;
-            }
-            
-            if(!circleB.isPinned)
-            {
-                circleB.currentPos.dx -= correctionX * 0.5;
-                circleB.currentPos.dy -= correctionY * 0.5;
-            }
+            // Calculate mass ratios - lighter objects move more
+            double totalMass = circleA.mass + circleB.mass;
+            double massRatioA = circleB.mass / totalMass; // Circle A moves proportional to B's mass
+            double massRatioB = circleA.mass / totalMass; // Circle B moves proportional to A's mass
             
             // If only one circle is pinned, the other gets full correction
             if(circleA.isPinned && !circleB.isPinned)
             {
-                circleB.currentPos.dx -= correctionX;
-                circleB.currentPos.dy -= correctionY;
+                circleB.currentPos.dx -= normalX * correctionAmount;
+                circleB.currentPos.dy -= normalY * correctionAmount;
             }
             else if(!circleA.isPinned && circleB.isPinned)
             {
-                circleA.currentPos.dx += correctionX;
-                circleA.currentPos.dy += correctionY;
+                circleA.currentPos.dx += normalX * correctionAmount;
+                circleA.currentPos.dy += normalY * correctionAmount;
             }
+            else if(!circleA.isPinned && !circleB.isPinned)
+            {
+                // Both circles move based on mass ratio
+                circleA.currentPos.dx += normalX * correctionAmount * massRatioA;
+                circleA.currentPos.dy += normalY * correctionAmount * massRatioA;
+                
+                circleB.currentPos.dx -= normalX * correctionAmount * massRatioB;
+                circleB.currentPos.dy -= normalY * correctionAmount * massRatioB;
+            }
+            // If both are pinned, do nothing
         }
     }
 }

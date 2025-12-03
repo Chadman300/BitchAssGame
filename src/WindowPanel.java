@@ -1,3 +1,4 @@
+import com.sun.security.auth.module.NTLoginModule;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -25,7 +26,8 @@ public class WindowPanel extends JPanel implements Runnable
     public double cameraY = 0;
 
     //player
-    public Player player;
+    public Player playerOne;
+    public Player playerTwo;
 
     //physics var
     public boolean isPaused = true;
@@ -47,6 +49,12 @@ public class WindowPanel extends JPanel implements Runnable
     private boolean aPressed = false;
     private boolean sPressed = false;
     private boolean dPressed = false;
+
+    // Arrow key input variables
+    private boolean upPressed = false;
+    private boolean leftPressed = false;
+    private boolean downPressed = false;
+    private boolean rightPressed = false;
     
     // FPS tracking variables
     private long lastFpsTime = System.nanoTime();
@@ -222,8 +230,9 @@ public class WindowPanel extends JPanel implements Runnable
         g.drawString("Camera Zoom: " + String.format("%.01f", cameraZoom), 10, 145);
         
         // Display key states for debugging
-        g.drawString("Keys: W:" + wPressed + " A:" + aPressed + " S:" + sPressed + " D:" + dPressed, 10, 165);
-        g.drawString("Focus: " + hasFocus(), 10, 185);
+        g.drawString("Keys 1: W:" + wPressed + " A:" + aPressed + " S:" + sPressed + " D:" + dPressed, 10, 165);
+        g.drawString("Keys 2: Up:" + upPressed + " Left:" + leftPressed + " Down:" + downPressed + " Right:" + rightPressed, 10, 185);
+        g.drawString("Focus: " + hasFocus(), 10, 205);
     }
 
     private void updateFPS() {
@@ -241,24 +250,86 @@ public class WindowPanel extends JPanel implements Runnable
 
     public void SpawnPlayer()
     {
-        if(player != null)
+        if(playerOne != null)
         {
             //remove old player circles
-            circlesList.remove(player.groundCircle);
-            circlesList.remove(player.playerCircle);
+            circlesList.remove(playerOne.groundCircle);
+            circlesList.remove(playerOne.playerCircle);
+        }
+        if(playerTwo != null)
+        {
+            //remove old player circles
+            circlesList.remove(playerTwo.groundCircle);
+            circlesList.remove(playerTwo.playerCircle);
         }
 
-        // Initialize player
-        var playerCircle = new Circle(10, windowHeight / 2, windowWidth/2, 1, Color.RED);
+        // Initialize player One
+        var playerCircle = new Circle(10, windowHeight / 2, windowWidth/2, 1, Color.ORANGE);
         var groundCircle = new Circle(8, windowHeight / 2, windowWidth/2, 1, Color.GREEN, false, false);
 
         playerCircle.layer = Layer.PLAYER;
         playerCircle.restitutionCircle = 0.1; // Less bouncy for player
         playerCircle.restitutionPoly  = 0.1; // Less bouncy for player
 
-        player = new Player(playerCircle, groundCircle);
-        circlesList.add(player.groundCircle);
-        circlesList.add(player.playerCircle);
+        playerOne = new Player(playerCircle, groundCircle, PlayerType.PLAYER_ONE);
+        circlesList.add(playerOne.groundCircle);
+        circlesList.add(playerOne.playerCircle);
+
+        //Init Player two
+        var playerCircleTwo = new Circle(10, windowHeight / 2 + 20, windowWidth/2, 1, Color.CYAN);
+        var groundCircleTwo = new Circle(8, windowHeight / 2 + 20, windowWidth/2, 1, Color.GREEN, false, false);
+
+        playerCircleTwo.layer = Layer.PLAYER;
+        playerCircleTwo.restitutionCircle = 0.1; // Less bouncy for player
+        playerCircleTwo.restitutionPoly  = 0.1; // Less bouncy for player
+
+        playerTwo = new Player(playerCircleTwo, groundCircleTwo, PlayerType.PLAYER_TWO);
+        circlesList.add(playerTwo.groundCircle);
+        circlesList.add(playerTwo.playerCircle);
+
+        //Link between players
+        int numLinks = 8;
+        int linkLength = 15;
+        int linkRadius = 5;
+        float linkMass = 0.01f;
+        Link curLink = null;
+        for(int l = 0; l < numLinks; l++)
+        {
+            Circle linkCircle = 
+            new Circle(
+                linkRadius, 
+                windowHeight / 2 + (l * linkLength), 
+                windowWidth/2, 
+                linkMass, 
+                Color.LIGHT_GRAY);
+
+            linkCircle.layer = Layer.LINK;
+            linkCircle.isPhysical = false; //non physical link circles
+            
+            circlesList.add(linkCircle);
+
+            if(l == 0)
+            {
+                curLink = new Link(playerOne.playerCircle, linkCircle, linkLength);
+                linksList.add(curLink);
+                curLink = new Link(curLink.circleB, null, linkLength);
+            }  
+            else
+            {
+                curLink.circleB = linkCircle;
+                linksList.add(curLink);
+                if(l == numLinks -1)
+                {
+                    //last link to player two
+                    curLink = new Link(curLink.circleB, playerTwo.playerCircle, linkLength); 
+                }
+                else
+                {
+                    curLink = new Link(curLink.circleB, null, linkLength); 
+                }
+                linksList.add(curLink);
+            }
+        }
     }
 
     private void drawGrid(Graphics g) 
@@ -328,14 +399,18 @@ public class WindowPanel extends JPanel implements Runnable
             
             for(int step = 0; step < _subSteps; step++)
             {
-                player.PlayerUpdate(subDeltaTime);
+                playerOne.PlayerUpdate(subDeltaTime);
+                playerTwo.PlayerUpdate(subDeltaTime);
 
-                if (aPressed) player.Move(subDeltaTime, -1);
-                if (dPressed) player.Move(subDeltaTime, 1);
+                if (aPressed) playerOne.Move(subDeltaTime, -1);
+                if (dPressed) playerOne.Move(subDeltaTime, 1);
+
+                if (leftPressed) playerTwo.Move(subDeltaTime, -1);
+                if (rightPressed) playerTwo.Move(subDeltaTime, 1);
 
                 //move camera to player
-                cameraX = -(player.playerCircle.currentPos.dx - (windowWidth / 2)) / cameraZoom;
-                cameraY = -(player.playerCircle.currentPos.dy - (windowHeight / 2)) / cameraZoom;
+                cameraX = -((playerOne.playerCircle.currentPos.dx + playerTwo.playerCircle.currentPos.dx) / 2 - (windowWidth / 2)) / cameraZoom;
+                cameraY = -((playerOne.playerCircle.currentPos.dy + playerTwo.playerCircle.currentPos.dy) / 2 - (windowHeight / 2)) / cameraZoom;
 
                 //Hash out circles into a grid for each substep
                 HashMap<String, ArrayList<Circle>> grid = new HashMap<>();
@@ -616,55 +691,53 @@ public class WindowPanel extends JPanel implements Runnable
             @Override
             public void keyPressed(KeyEvent e) 
             {
-                requestFocusInWindow();
+                //requestFocusInWindow();
 
                 int keyCode = e.getKeyCode();
                 System.out.println("Key pressed: " + KeyEvent.getKeyText(keyCode)); // Debug output
                 switch (keyCode) {
-                    case KeyEvent.VK_W:
+                    case KeyEvent.VK_W -> {
                         wPressed = true;
-                        break;
-                    case KeyEvent.VK_A:
-                        aPressed = true;
-                        break;
-                    case KeyEvent.VK_S:
-                        sPressed = true;
-                        break;
-                    case KeyEvent.VK_D:
-                        dPressed = true;
-                        break;
-                    case KeyEvent.VK_SHIFT:
-                        cameraSpeed = 1000.0;
-                        break;
-                    case KeyEvent.VK_SPACE:
-                        player.Jump(deltaTime);
-                        break;
+                        playerOne.Jump(deltaTime);
+                    }
+                    case KeyEvent.VK_A -> aPressed = true;
+                    case KeyEvent.VK_S -> sPressed = true;
+                    case KeyEvent.VK_D -> dPressed = true;
+                    case KeyEvent.VK_SHIFT -> cameraSpeed = 1000.0;
+                    case KeyEvent.VK_SPACE -> {
+                    }
+                    case KeyEvent.VK_UP -> {
+                        upPressed = true;
+                        playerTwo.Jump(deltaTime);
+                    }
+                    case KeyEvent.VK_LEFT -> leftPressed = true;
+                    case KeyEvent.VK_DOWN -> downPressed = true;
+                    case KeyEvent.VK_RIGHT -> rightPressed = true;
+                    default -> {
+                    }
                 }
-            }
+                //playerOne.Jump(deltaTime);
+                            }
             
             @Override
             public void keyReleased(KeyEvent e) 
             {
-                requestFocusInWindow();
+                //requestFocusInWindow();
 
                 int keyCode = e.getKeyCode();
                 System.out.println("Key released: " + KeyEvent.getKeyText(keyCode)); // Debug output
                 switch (keyCode) {
-                    case KeyEvent.VK_W:
-                        wPressed = false;
-                        break;
-                    case KeyEvent.VK_A:
-                        aPressed = false;
-                        break;
-                    case KeyEvent.VK_S:
-                        sPressed = false;
-                        break;
-                    case KeyEvent.VK_D:
-                        dPressed = false;
-                        break;
-                    case KeyEvent.VK_SHIFT:
-                        cameraSpeed = 200.0;
-                        break;
+                    case KeyEvent.VK_W -> wPressed = false;
+                    case KeyEvent.VK_A -> aPressed = false;
+                    case KeyEvent.VK_S -> sPressed = false;
+                    case KeyEvent.VK_D -> dPressed = false;
+                    case KeyEvent.VK_SHIFT -> cameraSpeed = 200.0;
+                    case KeyEvent.VK_UP -> upPressed = false;
+                    case KeyEvent.VK_LEFT -> leftPressed = false;
+                    case KeyEvent.VK_DOWN -> downPressed = false;
+                    case KeyEvent.VK_RIGHT -> rightPressed = false;
+                    default -> {
+                    }
                 }
             }
         });

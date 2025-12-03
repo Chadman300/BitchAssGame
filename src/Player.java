@@ -18,11 +18,12 @@ public class Player
     private float health;
     private float maxHealth;
 
-    public Player(Circle playerCircle, Circle groundCircle) 
+    public Player(Circle playerCircle, Circle groundCircle, PlayerType playerType) 
     {
         this.playerCircle = playerCircle;
         this.groundCircle = groundCircle;
         this.score = 0;
+        this.playerType = playerType;
 
         this.health = 100.0f; // Default health
         this.maxHealth = 100.0f; // Default max health
